@@ -1,0 +1,8 @@
+{
+  "name": "Remix: PCEA Tumutumu Hospital Night Report Tool",
+  "description": "Secure Night Superintendent Report Management System for PCEA Tumutumu Hospital, featuring Firebase Auth, role-based access, comprehensive shift statistics, and PDF report generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,149 @@
+{
+  "entities": {
+    "User": {
+      "title": "Hospital User Profile",
+      "description": "User profile containing roles and clinical designations for PCEA Tumutumu Hospital",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique user authentication ID"
+        },
+        "email": {
+          "type": "string",
+          "description": "Hospital email address of the employee"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Full name of the staff member"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["supervisor", "admin"],
+          "description": "Access privileges: 'supervisor' for Night Superintendent, 'admin' for Chief Medical Officer / Nursing Manager / Admin"
+        },
+        "designation": {
+          "type": "string",
+          "description": "Specific clinical role (e.g., Night Superintendent, CMO, Chief Matron)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "displayName", "role"]
+    },
+    "NightReport": {
+      "title": "Night Superintendent Report",
+      "description": "Aggregated nightly shift metrics and patient logs for PCEA Tumutumu Hospital",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the night shift (format: YYYY-MM-DD)"
+        },
+        "nightSuperName": {
+          "type": "string"
+        },
+        "nightSuperUid": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "submitted"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "submittedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "opdAttendance": {
+          "type": "number",
+          "description": "Total OPD attendance from 7:00 PM to 6:00 AM"
+        },
+        "patientStats": {
+          "type": "object",
+          "description": "Admitted patients count at shift start"
+        },
+        "admissions": {
+          "type": "object",
+          "description": "New admissions and transfers during shift"
+        },
+        "emergencies": {
+          "type": "object",
+          "description": "Emergency cases matching specific indices"
+        },
+        "morgue": {
+          "type": "object",
+          "description": "Morgue census and shift admissions"
+        },
+        "radiology": {
+          "type": "object",
+          "description": "Radiology department metrics"
+        },
+        "deaths": {
+          "type": "array",
+          "description": "Detailed log of deceased patients"
+        },
+        "incidents": {
+          "type": "array",
+          "description": "Severe incidents or infrastructure failures"
+        },
+        "deliveries": {
+          "type": "array",
+          "description": "Obstetric delivery logs"
+        },
+        "bloodTransfusions": {
+          "type": "array",
+          "description": "Blood units transfused and any reactions"
+        },
+        "majorProcedures": {
+          "type": "array",
+          "description": "Major operations and surgeries done at night"
+        },
+        "stockOuts": {
+          "type": "string"
+        },
+        "staffingNotes": {
+          "type": "string"
+        },
+        "generalRemarks": {
+          "type": "string"
+        },
+        "digitalSignature": {
+          "type": "string",
+          "description": "Visual path or text representation of digital signature"
+        },
+        "cmoComments": {
+          "type": "array",
+          "description": "Administrative notes added by CMO or Nursing Manager"
+        }
+      },
+      "required": ["date", "nightSuperUid", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles with authorized administrative roles"
+    },
+    "/nightReports/{reportId}": {
+      "schema": "NightReport",
+      "description": "Submitted or saved nightly hospital shift records"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSupervisor() {
+      return isAuthenticated() && (
+        getUserData().role == 'supervisor'
+      );
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        getUserData().role == 'admin'
+      );
+    }
+
+    // Rules for Users collection
+    match /users/{userId} {
+      // Users can write their own profiles during setup, read any, but only administrators can alter other roles
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Rules for Night Reports collection
+    match /nightReports/{reportId} {
+      // Admins can read all and write/update Comments. Supervisors can read all, and edit their own drafts/reports
+      allow read: if isAuthenticated();
+      allow create: if isSupervisor() && request.resource.data.nightSuperUid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        // Administrators can only update comments (cmoComments) or general remarks
+        (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cmoComments'])) ||
+        // Supervisors can update their own drafts
+        (isSupervisor() && resource.data.nightSuperUid == request.auth.uid)
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}
