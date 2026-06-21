@@ -2,7 +2,7 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
-  role: 'supervisor' | 'admin';
+  role: 'supervisor' | 'cmo' | 'cno' | 'admin';
   designation?: string;
   createdAt: string;
 }

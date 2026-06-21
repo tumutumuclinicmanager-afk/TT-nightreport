@@ -31,7 +31,7 @@ export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
-});
+}, "ai-studio-1654b752-049a-407f-877e-621160ca1b5a");
 
 // Validate Firestore Connection
 export async function validateConnection(): Promise<boolean> {

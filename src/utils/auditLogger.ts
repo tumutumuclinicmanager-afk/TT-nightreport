@@ -80,15 +80,11 @@ export function getReportDiff(oldReport: NightReport | null, newReport: NightRep
  */
 export function isAllowedToWhitelist(role: string, designation?: string, email?: string): boolean {
   const userRole = role || 'supervisor';
-  const rawDesignation = (designation || '').toLowerCase();
   const rawEmail = (email || '').toLowerCase();
 
-  if (rawEmail === 'tumutumuclinicmanager@gmail.com') return true;
+  if (rawEmail === 'tumutumuclinicmanager@gmail.com' || rawEmail === 'wangechigodfrey77@gmail.com') return true;
   if (userRole === 'admin') return true;
   
-  if (rawDesignation.includes('cmo') || rawDesignation.includes('chief medical officer') || rawDesignation.includes('chief medical director')) return true;
-  if (rawDesignation.includes('cno') || rawDesignation.includes('chief nursing officer') || rawDesignation.includes('chief nursing director')) return true;
-
   return false;
 }
 
@@ -99,15 +95,10 @@ export function isUserWhitelistedOrAuthorized(profile: any): boolean {
   if (!profile) return false;
   
   const rawEmail = (profile.email || '').toLowerCase();
-  if (rawEmail === 'tumutumuclinicmanager@gmail.com') return true;
+  if (rawEmail === 'tumutumuclinicmanager@gmail.com' || rawEmail === 'wangechigodfrey77@gmail.com') return true;
   
+  if (profile.role === 'admin' || profile.role === 'cmo' || profile.role === 'cno') return true;
   if (profile.whitelisted === true) return true;
-
-  // Bootstrapping auto-whitelist for high-privilege designations/roles
-  const d = (profile.designation || '').toLowerCase();
-  if (profile.role === 'admin') return true;
-  if (d.includes('cmo') || d.includes('chief medical officer') || d.includes('chief medical director')) return true;
-  if (d.includes('cno') || d.includes('chief nursing officer') || d.includes('chief nursing director')) return true;
 
   return false;
 }

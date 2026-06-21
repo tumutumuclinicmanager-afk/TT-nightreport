@@ -8,7 +8,7 @@ interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
-  role: 'supervisor' | 'admin';
+  role: 'supervisor' | 'cmo' | 'cno' | 'admin';
   designation?: string;
   createdAt: string;
   whitelisted?: boolean;
@@ -22,7 +22,7 @@ interface PreWhitelistedEmail {
 
 interface UserWhitelistProps {
   currentUser: any;
-  currentRole: 'supervisor' | 'admin';
+  currentRole: 'supervisor' | 'cmo' | 'cno' | 'admin';
   currentDesignation?: string;
 }
 
@@ -32,6 +32,7 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [newEmailToWhitelist, setNewEmailToWhitelist] = useState('');
+  const [selectedRoleToWhitelist, setSelectedRoleToWhitelist] = useState<'supervisor' | 'cmo' | 'cno' | 'admin'>('supervisor');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -115,13 +116,12 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
     }
   };
 
-  const handleToggleRole = async (user: UserProfile) => {
+  const handleChangeRole = async (user: UserProfile, nextRole: 'supervisor' | 'cmo' | 'cno' | 'admin') => {
     if (!canWhitelist) {
-      alert("Unauthorized Action: Only CMO, CNO, or admin accounts are allowed to update user roles.");
+      alert("Unauthorized Action: Only Super Admin is allowed to update user roles.");
       return;
     }
     
-    const nextRole = user.role === 'admin' ? 'supervisor' : 'admin';
     setActionLoading(user.uid + '_role');
     try {
       const userRef = doc(db, 'users', user.uid);
@@ -174,7 +174,8 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
       await setDoc(doc(db, 'whitelistedEmails', docId), {
         email: emailToSave,
         addedBy: currentUser.displayName || currentUser.email,
-        addedAt: new Date().toISOString()
+        addedAt: new Date().toISOString(),
+        role: selectedRoleToWhitelist
       });
 
       // Log it
@@ -189,11 +190,12 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
         userRole: currentRole,
         modifiedFields: ['whitelistedEmails'],
         action: 'create',
-        details: `Pre-whitelisted clean entry for hospital email address: '${emailToSave}'.`
+        details: `Pre-whitelisted clean entry for hospital email address: '${emailToSave}' with pre-authorized role: '${selectedRoleToWhitelist}'.`
       });
 
-      showNotification(`Pre-whitelisted ${emailToSave} successfully.`);
+      showNotification(`Pre-whitelisted ${emailToSave} as ${selectedRoleToWhitelist} successfully.`);
       setNewEmailToWhitelist('');
+      setSelectedRoleToWhitelist('supervisor');
       setRefreshTrigger(prev => prev + 1);
     } catch (err) {
       console.error(err);
@@ -321,10 +323,14 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{user.displayName}</p>
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${
                             user.role === 'admin' 
-                              ? 'bg-rose-50 text-rose-700 border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30' 
-                              : 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-350 dark:border-slate-700'
+                              ? 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30' 
+                              : user.role === 'cmo'
+                              ? 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30'
+                              : user.role === 'cno'
+                              ? 'bg-cyan-50 text-cyan-700 border-cyan-100 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/30'
+                              : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-350 dark:border-slate-705'
                           }`}>
                             {user.role}
                           </span>
@@ -334,20 +340,20 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
                       </div>
                     </div>
 
-                    <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3.5 pt-3 sm:pt-0 border-t sm:border-transparent dark:border-slate-800 bg-slate-50/25 sm:bg-transparent -mx-4 sm:mx-0 px-4 sm:px-0">
+                    <div className="flex flex-col sm:items-end justify-center gap-2.5 pt-3 sm:pt-0 border-t sm:border-transparent dark:border-slate-800 -mx-4 sm:mx-0 px-4 sm:px-0">
                       
                       {/* Whitelist Switcher */}
                       <button
                         onClick={() => handleToggleWhitelist(user)}
-                        disabled={actionLoading === user.uid}
+                        disabled={actionLoading === user.uid || user.email === 'tumutumuclinicmanager@gmail.com' || user.email === 'wangechigodfrey77@gmail.com'}
                         className={`flex items-center gap-2 text-xs font-semibold py-1.5 px-3 rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
-                          user.whitelisted || user.email === 'tumutumuclinicmanager@gmail.com'
+                          user.whitelisted || user.email === 'tumutumuclinicmanager@gmail.com' || user.email === 'wangechigodfrey77@gmail.com'
                             ? 'bg-teal-50 hover:bg-teal-100 text-teal-800 border-teal-150 dark:bg-teal-950/25 dark:text-teal-400 dark:border-teal-900/40'
                             : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-150 dark:bg-rose-950/25 dark:text-rose-400 dark:border-rose-900/40'
                         }`}
                         title="Click to toggle whitelisting"
                       >
-                        {user.whitelisted || user.email === 'tumutumuclinicmanager@gmail.com' ? (
+                        {user.whitelisted || user.email === 'tumutumuclinicmanager@gmail.com' || user.email === 'wangechigodfrey77@gmail.com' ? (
                           <>
                             <UserCheck className="h-4 w-4 text-teal-600" />
                             <span>Authorized (Whitelisted)</span>
@@ -360,14 +366,21 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
                         )}
                       </button>
 
-                      {/* Upgrade/Downgrade Button */}
-                      <button
-                        onClick={() => handleToggleRole(user)}
-                        disabled={actionLoading === user.uid + '_role' || user.email === 'tumutumuclinicmanager@gmail.com'}
-                        className="text-[10px] font-bold text-slate-500 hover:text-teal-600 dark:text-slate-400 dark:hover:text-teal-400 underline transition-all cursor-pointer disabled:opacity-30"
-                      >
-                        {user.role === 'admin' ? 'Change Role to Supervisor' : 'Grant Admin Roles'}
-                      </button>
+                      {/* Upgrade/Downgrade select dropdown */}
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">System Role:</span>
+                        <select
+                          value={user.role}
+                          onChange={(e) => handleChangeRole(user, e.target.value as any)}
+                          disabled={actionLoading === user.uid + '_role' || user.email === 'tumutumuclinicmanager@gmail.com' || user.email === 'wangechigodfrey77@gmail.com'}
+                          className="bg-slate-50 border border-slate-200 dark:bg-slate-950 dark:border-slate-800 rounded px-1.5 py-0.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-teal-500"
+                        >
+                          <option value="supervisor">Night Supervisor</option>
+                          <option value="cmo">CMO (Chief Medical Officer)</option>
+                          <option value="cno">CNO (Chief Nursing Officer)</option>
+                          <option value="admin">Super Admin</option>
+                        </select>
+                      </div>
 
                     </div>
                   </div>
@@ -403,6 +416,20 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
                 />
               </div>
 
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Pre-Authorized Account Role</label>
+                <select
+                  value={selectedRoleToWhitelist}
+                  onChange={(e) => setSelectedRoleToWhitelist(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-slate-100 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold"
+                >
+                  <option value="supervisor">Night Supervisor (Supervisor)</option>
+                  <option value="cmo">Chief Medical Officer (CMO)</option>
+                  <option value="cno">Chief Nursing Officer (CNO)</option>
+                  <option value="admin">Super Admin / Clinic Manager</option>
+                </select>
+              </div>
+
               <button
                 type="submit"
                 disabled={actionLoading === 'add_email'}
@@ -431,7 +458,14 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
                   <div key={entry.email} className="p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-xl flex items-center justify-between gap-3 text-xs">
                     <div className="min-w-0">
                       <p className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate">{entry.email}</p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">By {entry.addedBy}</p>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                        <span className="text-[9px] bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 font-extrabold px-1.5 py-0.2 rounded uppercase">
+                          {entry.role === 'admin' ? 'Admin' :
+                           entry.role === 'cmo' ? 'CMO' :
+                           entry.role === 'cno' ? 'CNO' : 'Supervisor'}
+                        </span>
+                        <span className="text-[9px] text-slate-400">• By {entry.addedBy}</span>
+                      </div>
                     </div>
                     <button
                       onClick={() => handleRemovePreWhitelist(entry.email)}

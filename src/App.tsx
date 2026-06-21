@@ -20,7 +20,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
   const [showBatchModal, setShowBatchModal] = useState<boolean>(false);
-  const [userRole, setUserRole] = useState<'supervisor' | 'admin'>('supervisor');
+  const [userRole, setUserRole] = useState<'supervisor' | 'cmo' | 'cno' | 'admin'>('supervisor');
   const [userDesignation, setUserDesignation] = useState<string>('Night Superintendent');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -81,18 +81,20 @@ export default function App() {
         setCurrentUser(user);
         // Load role parameters
         try {
-          // If they are the clinic manager, we force update their profile in Firestore if needed
+          // If they are a super admin, we force update their profile in Firestore if needed
           const emailToNormalize = (user.email || '').toLowerCase();
-          if (emailToNormalize === 'tumutumuclinicmanager@gmail.com') {
+          const isSuperAdmin = emailToNormalize === 'tumutumuclinicmanager@gmail.com' || emailToNormalize === 'wangechigodfrey77@gmail.com';
+          if (isSuperAdmin) {
             const userRef = doc(db, 'users', user.uid);
             const userDoc = await getDoc(userRef);
             if (!userDoc.exists() || userDoc.data().role !== 'admin' || !userDoc.data().whitelisted) {
+              const designationChoice = emailToNormalize === 'wangechigodfrey77@gmail.com' ? 'Super Admin' : 'Clinic Manager';
               await setDoc(userRef, {
                 uid: user.uid,
                 email: user.email,
-                displayName: 'Clinic Manager',
+                displayName: user.displayName || (emailToNormalize === 'wangechigodfrey77@gmail.com' ? 'Super Admin' : 'Clinic Manager'),
                 role: 'admin',
-                designation: 'Clinic Manager',
+                designation: designationChoice,
                 whitelisted: true,
                 createdAt: new Date().toISOString()
               }, { merge: true });
@@ -104,24 +106,51 @@ export default function App() {
             const data = userDoc.data();
             setUserProfile(data);
             setUserRole(data.role || 'supervisor');
-            setUserDesignation(data.designation || (data.role === 'admin' ? 'Chief Medical Director' : 'Night Superintendent'));
-            
-            // Check if DB is completely empty and seed historical records
-            await ensureDbSeeded(user.uid);
+            setUserDesignation(data.designation || (data.role === 'admin' ? 'Super Admin' : 'Night Superintendent'));
           } else {
-            // Default role fallback
+            // Default role fallback checking whitelist
+            const isSuperAdmin = emailToNormalize === 'tumutumuclinicmanager@gmail.com' || emailToNormalize === 'wangechigodfrey77@gmail.com';
+            let defaultRole: 'supervisor' | 'cmo' | 'cno' | 'admin' = 'supervisor';
+            let autoWhitelisted = false;
+
+            try {
+              const cleanId = emailToNormalize.replace(/[^a-zA-Z0-9]/g, '_');
+              const whitelistSnap = await getDoc(doc(db, 'whitelistedEmails', cleanId));
+              if (whitelistSnap.exists() || isSuperAdmin) {
+                autoWhitelisted = true;
+                if (whitelistSnap.exists()) {
+                  const wlData = whitelistSnap.data();
+                  if (wlData.role) {
+                    defaultRole = wlData.role;
+                  }
+                }
+              }
+            } catch (pwErr) {
+              console.warn("Could not query pre-whitelist table inside App.tsx auth observer:", pwErr);
+            }
+
+            if (isSuperAdmin) {
+              defaultRole = 'admin';
+              autoWhitelisted = true;
+            }
+
+            const defaultDesignation = 
+              defaultRole === 'admin' ? (emailToNormalize === 'wangechigodfrey77@gmail.com' ? 'Super Admin' : 'Clinic Manager') :
+              defaultRole === 'cmo' ? 'Chief Medical Officer' :
+              defaultRole === 'cno' ? 'Chief Nursing Officer' : 'Night Superintendent';
+            
             const defaultProf = {
               uid: user.uid,
               email: user.email || '',
-              displayName: user.displayName || 'Healthcare Professional',
-              role: 'supervisor' as const,
-              designation: 'Night Superintendent',
-              whitelisted: emailToNormalize === 'tumutumuclinicmanager@gmail.com',
+              displayName: user.displayName || (isSuperAdmin ? (emailToNormalize === 'wangechigodfrey77@gmail.com' ? 'Super Admin' : 'Clinic Manager') : 'Healthcare Professional'),
+              role: defaultRole,
+              designation: defaultDesignation,
+              whitelisted: autoWhitelisted,
               createdAt: new Date().toISOString()
             };
             setUserProfile(defaultProf);
-            setUserRole('supervisor');
-            setUserDesignation('Night Superintendent');
+            setUserRole(defaultRole);
+            setUserDesignation(defaultDesignation);
           }
         } catch (err) {
           console.warn("Using offline user role defaults:", err);
@@ -138,15 +167,14 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Database auto-seeding helper (disabled to avoid false data)
-  const ensureDbSeeded = async (uid: string) => {
-    console.log("Mock data seeding disabled to maintain pure data integrity.");
-  };
-
-  const handleLoginSuccess = (user: any, role: 'supervisor' | 'admin') => {
+  const handleLoginSuccess = (user: any, role: 'supervisor' | 'cmo' | 'cno' | 'admin') => {
     setCurrentUser(user);
     setUserRole(role);
-    setUserDesignation(role === 'admin' ? 'Chief Medical Officer' : 'Night Superintendent');
+    setUserDesignation(
+      role === 'admin' ? 'Super Admin' :
+      role === 'cmo' ? 'Chief Medical Officer' :
+      role === 'cno' ? 'Chief Nursing Officer' : 'Night Superintendent'
+    );
   };
 
   const handleLogout = () => {

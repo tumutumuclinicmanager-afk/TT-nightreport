@@ -15,7 +15,7 @@ import { isAllowedToWhitelist } from '../utils/auditLogger';
 
 interface BrandingProps {
   userName: string;
-  userRole: 'supervisor' | 'admin';
+  userRole: 'supervisor' | 'cmo' | 'cno' | 'admin';
   userDesignation?: string;
   userEmail?: string;
   activeTab: string;
@@ -147,7 +147,12 @@ export default function Branding({
             </div>
             <div className="overflow-hidden">
               <p className="text-xs font-semibold text-slate-200 truncate leading-snug">{userName}</p>
-              <p className="text-[10px] text-slate-400 truncate tracking-wide leading-none">{userDesignation}</p>
+              <p className="text-[10px] text-teal-400 font-extrabold uppercase tracking-wider leading-tight mt-0.5 mb-1">
+                {userRole === 'admin' ? 'Super Admin' :
+                 userRole === 'cmo' ? 'Chief Medical Officer' :
+                 userRole === 'cno' ? 'Chief Nursing Officer' : 'Night Supervisor'}
+              </p>
+              <p className="text-[9px] text-slate-405 truncate tracking-wide leading-none">{userDesignation}</p>
             </div>
           </div>
 

@@ -34,7 +34,7 @@ import {
 
 interface ReportingEngineProps {
   user: any;
-  userRole: 'supervisor' | 'admin';
+  userRole: 'supervisor' | 'cmo' | 'cno' | 'admin';
 }
 
 export default function ReportingEngine({ user, userRole }: ReportingEngineProps) {
@@ -261,7 +261,7 @@ export default function ReportingEngine({ user, userRole }: ReportingEngineProps
   const chartData = getChartData();
 
   // Generate beautiful custom PDF Report based on selection
-  const handlePdfDownload = (type: 'Daily' | 'Weekly' | 'Monthly' | 'Custom') => {
+  const handlePdfDownload = (type: string) => {
     if (filteredReports.length === 0) {
       alert("No report data available in the selected date range to print!");
       return;
@@ -443,6 +443,34 @@ export default function ReportingEngine({ user, userRole }: ReportingEngineProps
     doc.save(`TumuTumu_Hospital_${type}_Report_${startDate}_to_${endDate}.pdf`);
   };
 
+  const compilePresetReport = (type: 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly') => {
+    const weeksMap = {
+      'Weekly': 1,
+      'Monthly': 4,
+      'Quarterly': 12,
+      'Yearly': 52
+    };
+    const weeksAgo = weeksMap[type];
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - (weeksAgo * 7));
+    const startStr = start.toISOString().split('T')[0];
+    const endStr = end.toISOString().split('T')[0];
+    
+    setStartDate(startStr);
+    setEndDate(endStr);
+    
+    setTimeout(() => {
+      // Check directly from base 'reports' list prior to filter state update
+      const matches = reports.filter(r => r.date >= startStr && r.date <= endStr);
+      if (matches.length === 0) {
+        alert(`No shift reports compiled in the operations database for the ${type} period (${startStr} to ${endStr}).`);
+        return;
+      }
+      handlePdfDownload(type);
+    }, 150);
+  };
+
   // Predefined date scope helper button triggers
   const setQuickRange = (weeksAgo: number) => {
     const end = new Date();
@@ -586,6 +614,12 @@ export default function ReportingEngine({ user, userRole }: ReportingEngineProps
             >
               Past Quarter
             </button>
+            <button
+              onClick={() => setQuickRange(52)}
+              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              Past Year (365d)
+            </button>
           </div>
         </div>
       </div>
@@ -703,21 +737,52 @@ export default function ReportingEngine({ user, userRole }: ReportingEngineProps
                 </div>
               </div>
 
-              <div className="space-y-2.5 pt-5">
-                <button
-                  onClick={() => handlePdfDownload('Daily')}
-                  className="w-full h-10 border border-teal-600/30 hover:bg-teal-50 text-teal-800 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Print Aggregate Summary
-                </button>
-                <button
-                  onClick={() => handlePdfDownload('Custom')}
-                  className="w-full h-10 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-teal-600/10 transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <FileDown className="h-4 w-4" />
-                  Generate Range Report PDF
-                </button>
+              <div className="space-y-2 pt-4 border-t border-slate-100 mt-4">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Clinical Presets PDF Compiler</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => compilePresetReport('Weekly')}
+                    className="h-8 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 text-[10px] text-slate-700 font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                    title="Compile 7-Day Performance Ledger"
+                  >
+                    <Download className="h-3 w-3 text-teal-600" />
+                    Weekly PDF
+                  </button>
+                  <button
+                    onClick={() => compilePresetReport('Monthly')}
+                    className="h-8 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 text-[10px] text-slate-700 font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                    title="Compile 30-Day Performance Ledger"
+                  >
+                    <Download className="h-3 w-3 text-blue-600" />
+                    Monthly PDF
+                  </button>
+                  <button
+                    onClick={() => compilePresetReport('Quarterly')}
+                    className="h-8 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 text-[10px] text-slate-700 font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                    title="Compile 90-Day Performance Ledger"
+                  >
+                    <Download className="h-3 w-3 text-orange-600" />
+                    Quarterly PDF
+                  </button>
+                  <button
+                    onClick={() => compilePresetReport('Yearly')}
+                    className="h-8 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 text-[10px] text-slate-700 font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                    title="Compile 365-Day Performance Ledger"
+                  >
+                    <Download className="h-3 w-3 text-rose-600" />
+                    Yearly PDF
+                  </button>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => handlePdfDownload('Custom')}
+                    className="w-full h-9 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-lg shadow-md shadow-teal-600/10 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <FileDown className="h-3.5 w-3.5" />
+                    Print Selected Range PDF
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -26,7 +26,7 @@ import {
 
 interface DashboardProps {
   user: any;
-  userRole: 'supervisor' | 'admin';
+  userRole: 'supervisor' | 'cmo' | 'cno' | 'admin';
   onSelectDate: (date: string, editMode: boolean) => void;
   onRefreshTrigger: number;
   onOpenBatchExport?: () => void;
@@ -102,8 +102,11 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
     setIsSavingComment(true);
     const newComment: CMOComment = {
       id: `comment-${Date.now()}`,
-      commenterName: user.displayName || 'Chief Medical Officer / Admin',
-      commenterRole: userRole === 'admin' ? 'Chief Medical Director' : 'Supervisor',
+      commenterName: user.displayName || (userRole === 'cmo' ? 'Chief Medical Officer' : userRole === 'cno' ? 'Chief Nursing Officer' : 'Chief Medical Director / Admin'),
+      commenterRole: 
+        userRole === 'admin' ? 'Super Admin' : 
+        userRole === 'cmo' ? 'Chief Medical Officer' : 
+        userRole === 'cno' ? 'Chief Nursing Officer' : 'Supervisor',
       commentText: newCommentText.trim(),
       timestamp: new Date().toISOString()
     };
@@ -376,9 +379,9 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
     <div className="space-y-8 font-sans">
       
       {/* Search and Filters Hub */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between no-print">
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between no-print">
         
-        <div className="w-full md:w-auto flex-1">
+        <div className="w-full lg:w-auto flex-1">
           <div className="relative">
             <Search className="absolute left-3.5 top-3 text-slate-400 h-4.5 w-4.5" />
             <input
@@ -391,38 +394,38 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
           </div>
         </div>
 
-        <div className="flex gap-3 w-full md:w-auto shrink-0">
-          <div className="flex items-center gap-1.5 border border-slate-200 rounded-xl px-3 bg-slate-50">
-            <Filter className="text-slate-400 h-4 w-4" />
+        <div className="flex flex-wrap gap-2 w-full lg:w-auto shrink-0 items-center justify-stretch sm:justify-start">
+          <div className="flex items-center gap-1.5 border border-slate-200 rounded-xl px-2.5 bg-slate-50 flex-grow xs:flex-grow-0 h-10">
+            <Filter className="text-slate-400 h-4 w-4 shrink-0" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="text-xs font-semibold bg-transparent border-0 focus:ring-0 text-slate-700 py-2 cursor-pointer outline-none"
+              className="text-xs font-bold bg-transparent border-0 focus:ring-0 text-slate-700 py-1.5 cursor-pointer outline-none w-full"
             >
-              <option value="all">Display All Reports</option>
-              <option value="draft">Draft (Unsubmitted)</option>
-              <option value="submitted">Submitted (Locked)</option>
+              <option value="all">All Statuses</option>
+              <option value="draft">Drafts</option>
+              <option value="submitted">Submitted</option>
             </select>
           </div>
 
           {onOpenBatchExport && (
             <button
               onClick={onOpenBatchExport}
-              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-705 border border-slate-220 font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+              className="px-3 md:px-4 h-10 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 flex-grow sm:flex-initial"
               title="Batch export multiple night reports as high-quality PDFs"
             >
-              <Layers className="h-4 w-4 text-teal-600" />
-              <span>Batch PDF Export</span>
+              <Layers className="h-4 w-4 text-teal-600 shrink-0" />
+              <span>Batch PDF</span>
             </button>
           )}
 
           <button
             onClick={handleExportCSV}
-            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-705 border border-slate-220 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+            className="px-3 md:px-4 h-10 bg-slate-100 hover:bg-slate-200 text-slate-705 border border-slate-220 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 flex-grow sm:flex-initial"
             title="Export currently filtered list of shift reports in CSV format for spreadsheet analysis"
           >
-            <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-            <span>Export CSV</span>
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>CSV</span>
           </button>
 
           {userRole === 'supervisor' && (
@@ -431,10 +434,11 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
                 const shiftDate = getCurrentShiftDate();
                 onSelectDate(shiftDate, true);
               }}
-              className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-md shadow-teal-500/10 flex items-center gap-1.5 cursor-pointer"
+              className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-3 md:px-4 h-10 rounded-xl transition-all shadow-md shadow-teal-500/10 flex items-center justify-center gap-1.5 cursor-pointer flex-grow sm:flex-initial"
             >
-              <Plus className="h-4 w-4" />
-              File Today's Shift
+              <Plus className="h-4 w-4 shrink-0" />
+              <span className="hidden xs:inline">File Shift</span>
+              <span className="xs:hidden">File</span>
             </button>
           )}
         </div>
@@ -550,7 +554,7 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
             <div className="bg-white border rounded-2xl shadow-sm border-slate-200 overflow-hidden">
               
               {/* Report mini inspect Header */}
-              <div className="bg-slate-900 text-white p-5 flex justify-between items-center">
+              <div className="bg-slate-900 text-white p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <div className="text-[10px] bg-teal-500/10 text-teal-300 font-bold tracking-widest uppercase border border-teal-500/25 px-2 py-0.5 rounded-full inline-block">
                     Shift Report View Mode
@@ -562,28 +566,28 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
                     Lodged by: <span className="font-bold text-teal-200">{selectedReportForView.nightSuperName}</span>
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => generateSingleShiftPDF(selectedReportForView, user.displayName || 'PCEA Clinical Auditor')}
-                    className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md shadow-sky-500/10 active:scale-95 cursor-pointer"
+                    className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-md shadow-sky-500/10 active:scale-95 cursor-pointer flex-grow sm:flex-grow-0"
                     id="btn-download-pdf-report"
                     title="Download fully audited shift report PDF"
                   >
                     <Download className="h-3.5 w-3.5" />
-                    Download PDF
+                    <span>Download PDF</span>
                   </button>
                   {selectedReportForView.status === 'draft' && userRole === 'supervisor' && (
                     <button
                       onClick={() => onSelectDate(selectedReportForView.date, true)}
-                      className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                      className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer flex-grow sm:flex-grow-0"
                     >
                       <FileEdit className="h-3.5 w-3.5" />
-                      Edit Draft
+                      <span>Edit Draft</span>
                     </button>
                   )}
                   <button
                     onClick={() => setSelectedReportForView(null)}
-                    className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded transition-all cursor-pointer font-semibold uppercase"
+                    className="text-xs text-slate-400 hover:text-white px-2 py-1.5 rounded transition-all cursor-pointer font-semibold uppercase text-center flex-grow sm:flex-grow-0 border border-slate-700 sm:border-transparent"
                   >
                     Close
                   </button>
@@ -622,8 +626,8 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
                       <AlertCircle className="h-4.5 w-4.5" />
                       Mortality Audit Records
                     </h4>
-                    <div className="border border-rose-100 rounded-xl overflow-hidden text-xs">
-                      <table className="w-full text-left">
+                    <div className="border border-rose-100 rounded-xl overflow-x-auto no-scrollbar text-xs">
+                      <table className="w-full min-w-[500px] text-left">
                         <thead className="bg-rose-50 font-bold text-rose-900 border-b">
                           <tr>
                             <th className="p-2">Patient</th>
@@ -742,29 +746,31 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
                     <p className="text-xs text-slate-400 font-medium">No reviews or management guidelines added to this report yet.</p>
                   )}
 
-                  {/* Add Administrative comment if Admin (or anyone in test sandbox) */}
-                  <form onSubmit={handleAddComment} className="flex gap-2 items-start mt-3">
-                    <textarea
-                      rows={1.5}
-                      required
-                      placeholder="CMO/Admin: Type audit outcome remarks, instructions, or notes here..."
-                      value={newCommentText}
-                      onChange={(e) => setNewCommentText(e.target.value)}
-                      className="flex-grow p-2 w-full text-xs border rounded-xl bg-slate-50"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isSavingComment || !newCommentText.trim()}
-                      className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl py-2 px-3 shrink-0 self-center cursor-pointer transition-all hover:scale-105"
-                      title="Post Comment"
-                    >
-                      {isSavingComment ? (
-                        <div className="border-2 border-white border-t-transparent animate-spin h-4 w-4 rounded-full" />
-                      ) : (
-                        <Send className="h-4.5 w-4.5" />
-                      )}
-                    </button>
-                  </form>
+                  {/* Add Administrative commentary if authenticated as Admin, CMO, or CNO */}
+                  {(userRole === 'admin' || userRole === 'cmo' || userRole === 'cno') && (
+                    <form onSubmit={handleAddComment} className="flex gap-2 items-start mt-3">
+                      <textarea
+                        rows={1.5}
+                        required
+                        placeholder="CMO/Admin: Type audit outcome remarks, instructions, or notes here..."
+                        value={newCommentText}
+                        onChange={(e) => setNewCommentText(e.target.value)}
+                        className="flex-grow p-2 w-full text-xs border rounded-xl bg-slate-50"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isSavingComment || !newCommentText.trim()}
+                        className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl py-2 px-3 shrink-0 self-center cursor-pointer transition-all hover:scale-105"
+                        title="Post Comment"
+                      >
+                        {isSavingComment ? (
+                          <div className="border-2 border-white border-t-transparent animate-spin h-4 w-4 rounded-full" />
+                        ) : (
+                          <Send className="h-4.5 w-4.5" />
+                        )}
+                      </button>
+                    </form>
+                  )}
                 </div>
 
               </div>
