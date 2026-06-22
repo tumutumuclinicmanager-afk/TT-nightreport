@@ -81,48 +81,61 @@ export default function App() {
         setCurrentUser(user);
         // Load role parameters
         try {
-          // If they are a super admin, we force update their profile in Firestore if needed
           const emailToNormalize = (user.email || '').toLowerCase();
           const isSuperAdmin = emailToNormalize === 'tumutumuclinicmanager@gmail.com' || emailToNormalize === 'wangechigodfrey77@gmail.com';
+          
           if (isSuperAdmin) {
             const userRef = doc(db, 'users', user.uid);
-            const userDoc = await getDoc(userRef);
-            if (!userDoc.exists() || userDoc.data().role !== 'admin' || !userDoc.data().whitelisted) {
-              const designationChoice = emailToNormalize === 'wangechigodfrey77@gmail.com' ? 'Super Admin' : 'Clinic Manager';
-              await setDoc(userRef, {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName || (emailToNormalize === 'wangechigodfrey77@gmail.com' ? 'Super Admin' : 'Clinic Manager'),
-                role: 'admin',
-                designation: designationChoice,
-                whitelisted: true,
-                createdAt: new Date().toISOString()
-              }, { merge: true });
+            try {
+              const userDoc = await getDoc(userRef);
+              if (!userDoc.exists() || userDoc.data().role !== 'admin' || !userDoc.data().whitelisted) {
+                const designationChoice = emailToNormalize === 'wangechigodfrey77@gmail.com' ? 'Super Admin' : 'Clinic Manager';
+                await setDoc(userRef, {
+                  uid: user.uid,
+                  email: user.email,
+                  displayName: user.displayName || (emailToNormalize === 'wangechigodfrey77@gmail.com' ? 'Super Admin' : 'Clinic Manager'),
+                  role: 'admin',
+                  designation: designationChoice,
+                  whitelisted: true,
+                  createdAt: new Date().toISOString()
+                }, { merge: true });
+              }
+            } catch (dbErr) {
+              console.warn("Could not sync super admin role in Firestore, will apply locally:", dbErr);
             }
           }
 
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            setUserProfile(data);
-            setUserRole(data.role || 'supervisor');
-            setUserDesignation(data.designation || (data.role === 'admin' ? 'Super Admin' : 'Night Superintendent'));
+          let profileData: any = null;
+          try {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists()) {
+              profileData = userDoc.data();
+            }
+          } catch (fetchErr) {
+            console.warn("Could not fetch user profile from Firestore:", fetchErr);
+          }
+
+          if (profileData) {
+            if (isSuperAdmin) {
+              profileData.role = 'admin';
+              profileData.whitelisted = true;
+            }
+            setUserProfile(profileData);
+            setUserRole(profileData.role || 'supervisor');
+            setUserDesignation(profileData.designation || (profileData.role === 'admin' ? 'Super Admin' : 'Night Superintendent'));
           } else {
             // Default role fallback checking whitelist
-            const isSuperAdmin = emailToNormalize === 'tumutumuclinicmanager@gmail.com' || emailToNormalize === 'wangechigodfrey77@gmail.com';
-            let defaultRole: 'supervisor' | 'cmo' | 'cno' | 'admin' = 'supervisor';
-            let autoWhitelisted = false;
+            let defaultRole: 'supervisor' | 'cmo' | 'cno' | 'admin' = isSuperAdmin ? 'admin' : 'supervisor';
+            let autoWhitelisted = isSuperAdmin;
 
             try {
               const cleanId = emailToNormalize.replace(/[^a-zA-Z0-9]/g, '_');
               const whitelistSnap = await getDoc(doc(db, 'whitelistedEmails', cleanId));
-              if (whitelistSnap.exists() || isSuperAdmin) {
+              if (whitelistSnap.exists()) {
                 autoWhitelisted = true;
-                if (whitelistSnap.exists()) {
-                  const wlData = whitelistSnap.data();
-                  if (wlData.role) {
-                    defaultRole = wlData.role;
-                  }
+                const wlData = whitelistSnap.data();
+                if (wlData.role) {
+                  defaultRole = wlData.role;
                 }
               }
             } catch (pwErr) {
@@ -154,8 +167,24 @@ export default function App() {
           }
         } catch (err) {
           console.warn("Using offline user role defaults:", err);
-          setUserRole('supervisor');
-          setUserDesignation('Night Superintendent');
+          const emailToNormalize = (user.email || '').toLowerCase();
+          const isSuperAdmin = emailToNormalize === 'tumutumuclinicmanager@gmail.com' || emailToNormalize === 'wangechigodfrey77@gmail.com';
+          if (isSuperAdmin) {
+            setUserRole('admin');
+            setUserDesignation(emailToNormalize === 'wangechigodfrey77@gmail.com' ? 'Super Admin' : 'Clinic Manager');
+            setUserProfile({
+              uid: user.uid,
+              email: user.email || '',
+              displayName: emailToNormalize === 'wangechigodfrey77@gmail.com' ? 'Super Admin' : 'Clinic Manager',
+              role: 'admin',
+              designation: emailToNormalize === 'wangechigodfrey77@gmail.com' ? 'Super Admin' : 'Clinic Manager',
+              whitelisted: true,
+              createdAt: new Date().toISOString()
+            });
+          } else {
+            setUserRole('supervisor');
+            setUserDesignation('Night Superintendent');
+          }
         }
       } else {
         setCurrentUser(null);

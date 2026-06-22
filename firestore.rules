@@ -7,43 +7,36 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function isSupervisor() {
+    function isSuperAdmin() {
       return isAuthenticated() && (
-        getUserData().role == 'supervisor'
+        request.auth.token.email == 'tumutumuclinicmanager@gmail.com' ||
+        request.auth.token.email == 'wangechigodfrey77@gmail.com'
       );
     }
 
-    function isAdmin() {
-      return isAuthenticated() && (
-        getUserData().role == 'admin'
-      );
+    // Rules for system/connection-test verification
+    match /system/{docId} {
+      allow read, write: if isAuthenticated();
     }
 
     // Rules for Users collection
     match /users/{userId} {
-      // Users can write their own profiles during setup, read any, but only administrators can alter other roles
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow delete: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     // Rules for Night Reports collection
     match /nightReports/{reportId} {
-      // Admins can read all and write/update Comments. Supervisors can read all, and edit their own drafts/reports
-      allow read: if isAuthenticated();
-      allow create: if isSupervisor() && request.resource.data.nightSuperUid == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        // Administrators can only update comments (cmoComments) or general remarks
-        (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cmoComments'])) ||
-        // Supervisors can update their own drafts
-        (isSupervisor() && resource.data.nightSuperUid == request.auth.uid)
-      );
-      allow delete: if isAdmin();
+      allow read, write: if isAuthenticated();
+    }
+
+    // Rules for Whitelisted Emails
+    match /whitelistedEmails/{emailId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Rules for Audit Logs
+    match /auditLogs/{logId} {
+      allow read, write: if isAuthenticated();
     }
   }
 }

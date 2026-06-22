@@ -789,7 +789,12 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
               {/* Simple grid list of recent reports */}
               <div className="border-t pt-4 space-y-2.5 text-left text-xs max-h-72 overflow-y-auto no-scrollbar">
                 <span className="font-bold text-slate-400 uppercase text-[10px] tracking-wider block">Recent Logs</span>
-                {reports.length > 0 ? (
+                {loading ? (
+                  <div className="py-6 text-center space-y-2">
+                    <div className="h-5 w-5 border-2 border-teal-600 border-t-transparent animate-spin rounded-full mx-auto" />
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest animate-pulse">Syncing shifts...</p>
+                  </div>
+                ) : reports.length > 0 ? (
                   reports.slice(0, 5).map(rep => (
                     <div 
                       key={rep.date} 

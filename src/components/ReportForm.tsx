@@ -19,8 +19,11 @@ import {
   Clock, 
   Heart, 
   MessageSquare, 
-  RefreshCcw 
+  RefreshCcw,
+  Eye,
+  X
 } from 'lucide-react';
+import { generateSingleShiftPDF } from '../utils/pdfGenerator';
 
 interface ReportFormProps {
   user: any;
@@ -82,6 +85,36 @@ export default function ReportForm({ user, userRole, initialDate, onSaved, exist
   // Canvas ref for signature
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+
+  // PDF Preview states and actions
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+
+  const handlePreviewReport = () => {
+    try {
+      const doc = generateSingleShiftPDF(report, user?.displayName || 'Authorized Clinician', false);
+      const pdfBlob = doc.output('blob');
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      setPreviewBlobUrl(blobUrl);
+    } catch (err: any) {
+      console.error("Failed to generate PDF preview:", err);
+      alert("Failed to generate PDF preview: " + (err.message || err));
+    }
+  };
+
+  const handleClosePreview = () => {
+    if (previewBlobUrl) {
+      URL.revokeObjectURL(previewBlobUrl);
+      setPreviewBlobUrl(null);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (previewBlobUrl) {
+        URL.revokeObjectURL(previewBlobUrl);
+      }
+    };
+  }, [previewBlobUrl]);
 
   // Check draft restore state on component mount
   useEffect(() => {
@@ -1676,23 +1709,33 @@ export default function ReportForm({ user, userRole, initialDate, onSaved, exist
                 </div>
 
                 {report.status !== 'submitted' && (
-                  <div className="pt-4 border-t border-slate-200 flex gap-3">
+                  <div className="pt-4 border-t border-slate-200 flex flex-col gap-3">
                     <button
                       type="button"
-                      onClick={() => saveReportToDb()}
-                      className="flex-1 h-10 border border-slate-300 hover:bg-slate-100 rounded-xl text-xs font-semibold text-slate-700 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      onClick={handlePreviewReport}
+                      className="w-full h-11 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      <Save className="h-4 w-4" />
-                      Save as Draft
+                      <Eye className="h-4 w-4" />
+                      Preview Report PDF
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowSubmitModal(true)}
-                      className="flex-1 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-teal-600/15 cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      Submit Final Report
-                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => saveReportToDb()}
+                        className="flex-1 h-10 border border-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <Save className="h-4 w-4" />
+                        Save as Draft
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowSubmitModal(true)}
+                        className="flex-1 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-teal-600/15 cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        Submit Final Report
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1775,6 +1818,83 @@ export default function ReportForm({ user, userRole, initialDate, onSaved, exist
                 ) : 'Confirm & Submit'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF PREVIEW DIALOG MODAL */}
+      {previewBlobUrl && (
+        <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all animate-fade-in font-sans">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-5xl w-full border border-slate-100 dark:border-slate-800 shadow-2xl flex flex-col h-[90vh]">
+            
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 rounded-t-2xl">
+              <div>
+                <h3 className="text-base font-bold text-slate-950 dark:text-slate-50 flex items-center gap-2">
+                  <Eye className="h-5 w-5 text-teal-600 animate-pulse" />
+                  Live Report PDF Preview
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">Verify all metrics, records, signatures and formatting before submitting.</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClosePreview}
+                className="h-8 w-8 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                title="Close Preview"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Content iframe */}
+            <div className="flex-1 bg-slate-100 dark:bg-slate-950 p-4 flex items-center justify-center overflow-hidden">
+              <iframe 
+                src={`${previewBlobUrl}#toolbar=0&navpanes=0`}
+                className="w-full h-full border border-slate-200 dark:border-slate-800 rounded-xl bg-white shadow-sm"
+                title="Report PDF Preview"
+              />
+            </div>
+
+            {/* Action Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 rounded-b-2xl">
+              <div className="hidden sm:block text-xs font-medium text-slate-400 font-mono">
+                PCEA Tumutumu Hospital • Audit Core v1.5
+              </div>
+              <div className="flex gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleClosePreview}
+                  className="flex-1 sm:flex-initial px-4 py-2 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                >
+                  Close Preview
+                </button>
+                {report.status !== 'submitted' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        saveReportToDb();
+                        handleClosePreview();
+                      }}
+                      className="flex-1 sm:flex-initial px-4 py-2 border border-teal-200 dark:border-teal-800/40 bg-teal-50 dark:bg-teal-950/20 hover:bg-teal-100 dark:hover:bg-teal-900/30 text-teal-800 dark:text-teal-300 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                    >
+                      Save as Draft
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleClosePreview();
+                        setShowSubmitModal(true);
+                      }}
+                      className="flex-1 sm:flex-initial px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs shadow-md shadow-teal-600/15 transition-all cursor-pointer"
+                    >
+                      Submit Report
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
       )}

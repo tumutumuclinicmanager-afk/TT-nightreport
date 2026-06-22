@@ -30,6 +30,7 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [preWhitelisted, setPreWhitelisted] = useState<PreWhitelistedEmail[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorVal, setErrorVal] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [newEmailToWhitelist, setNewEmailToWhitelist] = useState('');
   const [selectedRoleToWhitelist, setSelectedRoleToWhitelist] = useState<'supervisor' | 'cmo' | 'cno' | 'admin'>('supervisor');
@@ -42,6 +43,7 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setErrorVal(null);
       try {
         // Fetch registered users
         const usersSnap = await getDocs(collection(db, 'users'));
@@ -58,8 +60,9 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
           whitelistList.push(d.data() as PreWhitelistedEmail);
         });
         setPreWhitelisted(whitelistList);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error loading user administration metadata:", err);
+        setErrorVal(err.message || "Failed to synchronise staff registry from Firestore.");
       } finally {
         setLoading(false);
       }
@@ -271,6 +274,21 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
         <div className="bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-400 text-xs font-semibold p-4 rounded-xl border border-teal-100 dark:border-teal-900/40 flex items-center gap-2.5 transition-all animate-in fade-in">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           <span>{successMessage}</span>
+        </div>
+      )}
+
+      {errorVal && (
+        <div className="bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-400 text-xs font-semibold p-4 rounded-xl border border-rose-100 dark:border-rose-900/40 flex items-center gap-2.5 transition-all animate-in fade-in">
+          <ShieldAlert className="h-5 w-5 text-rose-500 shrink-0" />
+          <div className="flex-1">
+            <span className="font-bold">Sync Error:</span> {errorVal}
+            <button 
+              onClick={() => setRefreshTrigger(prev => prev + 1)}
+              className="ml-3 text-rose-600 dark:text-rose-300 underline font-bold hover:text-rose-700 hover:no-underline"
+            >
+              Retry Connection
+            </button>
+          </div>
         </div>
       )}
 

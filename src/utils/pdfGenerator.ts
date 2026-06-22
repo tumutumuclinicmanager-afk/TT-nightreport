@@ -5,7 +5,7 @@ import { NightReport } from '../types/report';
 /**
  * Generates a professionally branded PCEA Tumutumu Hospital Night Shift Report PDF.
  */
-export function generateSingleShiftPDF(report: NightReport, currentUserDisplayName?: string) {
+export function generateSingleShiftPDF(report: NightReport, currentUserDisplayName?: string, saveToFile: boolean = true) {
   const doc = new jsPDF();
   const primaryColor: [number, number, number] = [13, 148, 136]; // Teal #0d9488
   const secondaryColor: [number, number, number] = [15, 23, 42]; // Dark Slate #0f172a
@@ -404,7 +404,10 @@ export function generateSingleShiftPDF(report: NightReport, currentUserDisplayNa
     doc.text(`Page ${i} of ${totalPages}`, 196, 293.5, { align: 'right' });
   }
 
-  doc.save(`PCEA_Tumutumu_Report_${report.date}.pdf`);
+  if (saveToFile) {
+    doc.save(`PCEA_Tumutumu_Report_${report.date}.pdf`);
+  }
+  return doc;
 }
 
 /**

@@ -30,7 +30,8 @@ export const googleProvider = new GoogleAuthProvider();
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
-  })
+  }),
+  experimentalForceLongPolling: true
 }, "ai-studio-1654b752-049a-407f-877e-621160ca1b5a");
 
 // Validate Firestore Connection

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../firebase';
-import { HeartPulse, ShieldAlert } from 'lucide-react';
+import { HeartPulse, ShieldAlert, AlertCircle } from 'lucide-react';
 
 interface AuthProps {
   onLoginSuccess: (user: any, role: 'supervisor' | 'cmo' | 'cno' | 'admin') => void;
@@ -11,6 +11,7 @@ interface AuthProps {
 export default function Auth({ onLoginSuccess }: AuthProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [useRedirectOnly, setUseRedirectOnly] = useState(false);
 
   const fetchOrCreateUserProfile = async (user: any) => {
     try {
@@ -87,6 +88,37 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
     }
   };
 
+  // Listen for redirect results on component mount
+  useEffect(() => {
+    let active = true;
+    const checkRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user && active) {
+          setLoading(true);
+          const resolvedRole = await fetchOrCreateUserProfile(result.user);
+          if (active) {
+            onLoginSuccess(result.user, resolvedRole);
+          }
+        }
+      } catch (err: any) {
+        console.error("Redirect collection failed:", err);
+        if (active) {
+          setError(err.message || "Failed to finalize secure Google Redirect sign-in.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+    checkRedirect();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handleGoogleSignIn = async () => {
     setError('');
     setLoading(true);
@@ -95,9 +127,30 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
       const resolvedRole = await fetchOrCreateUserProfile(cred.user);
       onLoginSuccess(cred.user, resolvedRole);
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Google Authentication failed. Please try again or use a supported browser.");
-    } finally {
+      console.error("Popup mode failed:", err);
+      // Auto fallback to redirect mode if popup is blocked, closed, or cancelled
+      if (
+        err.code === 'auth/popup-blocked' ||
+        err.code === 'auth/popup-closed-by-user' ||
+        err.code === 'auth/cancelled-popup-request' ||
+        useRedirectOnly
+      ) {
+        await handleRedirectSignIn();
+      } else {
+        setError(err.message || "Google Authentication failed. Please try again or use web redirect.");
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleRedirectSignIn = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await signInWithRedirect(auth, googleProvider);
+    } catch (err: any) {
+      console.error("Redirect initiation failed:", err);
+      setError(err.message || "Fail to initiate sign-in redirection. Please enable third-party cookies.");
       setLoading(false);
     }
   };
@@ -137,14 +190,17 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
             </div>
           )}
 
-          <div className="pt-2">
+          <div className="pt-2 space-y-3">
             <button
               type="button"
-              onClick={handleGoogleSignIn}
+              onClick={() => {
+                setUseRedirectOnly(false);
+                handleGoogleSignIn();
+              }}
               disabled={loading}
               className="w-full h-12 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50"
             >
-              {loading ? (
+              {loading && !useRedirectOnly ? (
                 <div className="border-2 border-slate-400 border-t-transparent animate-spin h-5 w-5 rounded-full" />
               ) : (
                 <>
@@ -154,7 +210,32 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
                     <path fill="#FBBC05" d="M5.35 10.66a7.16 7.16 0 0 1 0-4.52L1.58 3.22A12.01 12.01 0 0 0 1.58 15l3.77-2.92c-.31-.47-.5-.98-.5-1.42z" />
                     <path fill="#34A853" d="M12 23c3.24 0 5.95-1.08 7.93-2.91l-3.7-2.87c-1.11.75-2.52 1.2-4.23 1.2-3.13 0-5.73-2.36-6.65-5.62L1.58 15.72A11.97 11.97 0 0 0 12 23z" />
                   </svg>
-                  <span className="font-bold">Sign In with Google</span>
+                  <span className="font-bold">Sign In with Pop-up</span>
+                </>
+              )}
+            </button>
+
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-slate-100"></div>
+              <span className="flex-shrink mx-3 text-[10px] text-slate-400 font-bold uppercase tracking-wider">Trouble with Pop-ups?</span>
+              <div className="flex-grow border-t border-slate-100"></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setUseRedirectOnly(true);
+                handleRedirectSignIn();
+              }}
+              disabled={loading}
+              className="w-full h-11 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-100/50 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {loading && useRedirectOnly ? (
+                <div className="border-2 border-teal-600 border-t-transparent animate-spin h-4.5 w-4.5 rounded-full" />
+              ) : (
+                <>
+                  <AlertCircle className="h-4 w-4 text-teal-600 animate-bounce" />
+                  <span>Use Redirect Sign-In (Best for Mobile)</span>
                 </>
               )}
             </button>
