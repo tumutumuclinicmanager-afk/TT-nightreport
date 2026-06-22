@@ -344,11 +344,10 @@ export default function ReportingEngine({ user, userRole }: ReportingEngineProps
       }
     });
 
-    const admissionTableHeaders = [['In-Patient Ward Unit Name', 'Admissions Sum Total', 'Average Admissions / Night']];
+    const admissionTableHeaders = [['In-Patient Ward Unit Name', 'Admissions Sum Total']];
     const admissionRows = Object.entries(wardSums).map(([ward, total]) => [
       ward,
-      total,
-      (total / (stats.shiftsLoggedCount || 1)).toFixed(2)
+      total
     ]);
 
     autoTable(doc, {
@@ -788,10 +787,10 @@ export default function ReportingEngine({ user, userRole }: ReportingEngineProps
 
           </div>
 
-          {/* 3. Admissions vs Mortalities clustered column */}
+          {/* 3. Deliveries vs Ward Admissions clustered column */}
           <div className="bg-white p-5 border border-slate-100 rounded-2xl shadow-sm">
             <div className="flex items-center justify-between border-b pb-3 mb-4">
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Shift Deliveries vs Deaths Correlation</h4>
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Shift Deliveries vs Ward Admissions</h4>
               <span className="text-[10px] font-semibold text-slate-400">Shift outcomes timeline</span>
             </div>
 
@@ -805,7 +804,7 @@ export default function ReportingEngine({ user, userRole }: ReportingEngineProps
                     <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
                     <Legend wrapperStyle={{ fontSize: 10 }} />
                     <Bar dataKey="Deliveries" fill="#10b981" name="Deliveries" maxBarSize={25} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Deaths" fill="#ef4444" name="Deaths / Mortalities" maxBarSize={25} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Admissions" fill="#0ea5e9" name="Ward Admissions" maxBarSize={25} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

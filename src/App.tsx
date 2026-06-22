@@ -551,11 +551,16 @@ export default function App() {
 
         {/* Branded Clinical Environment Footer details */}
         <footer className="bg-white dark:bg-slate-900 border-t border-slate-200/60 dark:border-slate-800 py-4 text-center mt-auto no-print transition-colors duration-350">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 font-medium font-sans">
-            <span>&copy; {new Date().getFullYear()} PCEA Tumutumu Hospital. Operations Registry.</span>
-            <div className="flex gap-4 mt-2 sm:mt-0 font-semibold text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> HIPAA Certified Cloud Tunneling</span>
-              <span className="flex items-center gap-1"><HelpCircle className="h-3.5 w-3.5" /> Support Ext: 4400</span>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-2">
+            <div className="flex flex-col sm:flex-row justify-between items-center text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 font-medium font-sans">
+              <span>&copy; {new Date().getFullYear()} PCEA Tumutumu Hospital. Operations Registry.</span>
+              <div className="flex gap-4 mt-2 sm:mt-0 font-semibold text-slate-500 dark:text-slate-400">
+                <span className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> HIPAA Certified Cloud Tunneling</span>
+                <span className="flex items-center gap-1"><HelpCircle className="h-3.5 w-3.5" /> Support Ext: 4400</span>
+              </div>
+            </div>
+            <div className="text-center sm:text-right text-[10px] text-slate-400/80 dark:text-slate-500/80 font-semibold font-mono tracking-wide">
+              built by Godfrey #Novamed solutions
             </div>
           </div>
         </footer>
