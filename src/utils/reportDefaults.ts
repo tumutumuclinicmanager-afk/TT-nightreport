@@ -3,12 +3,18 @@ import { NightReport, PatientStats, AdmissionStats, EmergencyStats, MorgueStats,
 export function getCurrentShiftDate(): string {
   const now = new Date();
   const hours = now.getHours();
+  
+  let targetDate = now;
   // If we are in the morning before 8 AM, the shift belongs to the previous day (yesterday)
   if (hours < 8) {
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    return yesterday.toLocaleDateString('sv-SE');
+    targetDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   }
-  return now.toLocaleDateString('sv-SE');
+  
+  const yyyy = targetDate.getFullYear();
+  const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(targetDate.getDate()).padStart(2, '0');
+  
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export function getInitialPatientStats(): PatientStats {

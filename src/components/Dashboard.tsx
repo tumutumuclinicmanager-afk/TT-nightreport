@@ -46,8 +46,9 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
   const [isSavingComment, setIsSavingComment] = useState(false);
 
   // Calendar dates generation
-  const [currentYear, setCurrentYear] = useState(2026);
-  const [currentMonth, setCurrentMonth] = useState(5); // June (0-indexed represents June as 5, actually local time in metadata says 2026-06-18)
+  const [yearStr, monthStr] = getCurrentShiftDate().split('-');
+  const [currentYear, setCurrentYear] = useState(parseInt(yearStr, 10));
+  const [currentMonth, setCurrentMonth] = useState(parseInt(monthStr, 10) - 1);
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June", 
@@ -542,7 +543,12 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
               {calendarDays.map((dateObj, idx) => {
                 if (!dateObj) return <div key={`empty-${idx}`} />;
                 
-                const dateStr = dateObj.toISOString().split('T')[0];
+                // Use local timezone to extract YYYY-MM-DD
+                const yyyy = dateObj.getFullYear();
+                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const dd = String(dateObj.getDate()).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-${dd}`;
+                
                 const matchedReport = getMapReportOnDate(dateStr);
                 const hasDraft = matchedReport && matchedReport.status === 'draft';
                 const hasSubmitted = matchedReport && matchedReport.status === 'submitted';
@@ -554,7 +560,19 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
                       if (matchedReport) {
                         setSelectedReportForView(matchedReport);
                       } else if (userRole === 'supervisor') {
-                        onSelectDate(dateStr, true);
+                        const shiftDate = getCurrentShiftDate();
+                        const shiftDateObj = new Date(shiftDate);
+                        const clickedDateObj = new Date(dateStr);
+                        const diffTime = shiftDateObj.getTime() - clickedDateObj.getTime();
+                        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        if (clickedDateObj > shiftDateObj) {
+                          alert("You cannot file a report for a future shift.");
+                        } else if (diffDays > 3) {
+                          alert("You cannot file a report for a shift more than 3 days ago.");
+                        } else {
+                          onSelectDate(dateStr, true);
+                        }
                       } else {
                         alert("No night report filed yet for: " + dateStr);
                       }

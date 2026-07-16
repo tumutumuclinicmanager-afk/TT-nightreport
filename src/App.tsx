@@ -23,6 +23,7 @@ export default function App() {
   const [userRole, setUserRole] = useState<'supervisor' | 'cmo' | 'cno' | 'admin'>('supervisor');
   const [userDesignation, setUserDesignation] = useState<string>('Night Superintendent');
   const [loading, setLoading] = useState(true);
+  const [authProcessing, setAuthProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [offlineStatus, setOfflineStatus] = useState<boolean>(!navigator.onLine);
   const [showSyncDetails, setShowSyncDetails] = useState<boolean>(false);
@@ -78,7 +79,7 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setCurrentUser(user);
+        setAuthProcessing(true);
         // Load role parameters
         try {
           const emailToNormalize = (user.email || '').toLowerCase();
@@ -161,6 +162,13 @@ export default function App() {
               whitelisted: autoWhitelisted,
               createdAt: new Date().toISOString()
             };
+            
+            try {
+              await setDoc(doc(db, 'users', user.uid), defaultProf);
+            } catch (createErr) {
+              console.warn("Could not auto-create user profile in Firestore:", createErr);
+            }
+
             setUserProfile(defaultProf);
             setUserRole(defaultRole);
             setUserDesignation(defaultDesignation);
@@ -186,25 +194,17 @@ export default function App() {
             setUserDesignation('Night Superintendent');
           }
         }
+        setCurrentUser(user);
       } else {
         setCurrentUser(null);
         setUserProfile(null);
       }
+      setAuthProcessing(false);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
-
-  const handleLoginSuccess = (user: any, role: 'supervisor' | 'cmo' | 'cno' | 'admin') => {
-    setCurrentUser(user);
-    setUserRole(role);
-    setUserDesignation(
-      role === 'admin' ? 'Super Admin' :
-      role === 'cmo' ? 'Chief Medical Officer' :
-      role === 'cno' ? 'Chief Nursing Officer' : 'Night Superintendent'
-    );
-  };
 
   const handleLogout = () => {
     setShowLogoutConfirm(true);
@@ -284,7 +284,7 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
-  if (loading) {
+  if (loading || authProcessing) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
         <div className="text-center space-y-4">
@@ -301,7 +301,7 @@ export default function App() {
   }
 
   if (!currentUser) {
-    return <Auth onLoginSuccess={handleLoginSuccess} />;
+    return <Auth />;
   }
 
   // Check Whitelist status
