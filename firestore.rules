@@ -16,7 +16,8 @@ service cloud.firestore {
 
     // Rules for system/connection-test verification
     match /system/{docId} {
-      allow read, write: if isAuthenticated();
+      allow read: if true;
+      allow write: if isAuthenticated();
     }
 
     // Rules for Users collection

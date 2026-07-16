@@ -21,9 +21,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+export const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);
+export const secondaryAuth = getAuth(secondaryApp);
 export const googleProvider = new GoogleAuthProvider();
 
 // Initialize Firestore with robust local persistent cache for offline support

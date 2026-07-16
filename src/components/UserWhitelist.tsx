@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
+import { db, secondaryAuth } from '../firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, getDocs, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { ShieldAlert, UserCheck, UserX, Mail, Search, Shield, ToggleLeft, ToggleRight, CheckCircle2, Trash2 } from 'lucide-react';
+import { ShieldAlert, UserCheck, UserX, Mail, Search, Shield, CheckCircle2, Trash2, Key, UserPlus } from 'lucide-react';
 import { isAllowedToWhitelist } from '../utils/auditLogger';
 
 interface UserProfile {
@@ -32,8 +33,17 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
   const [loading, setLoading] = useState(true);
   const [errorVal, setErrorVal] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Pre-authorization state
   const [newEmailToWhitelist, setNewEmailToWhitelist] = useState('');
   const [selectedRoleToWhitelist, setSelectedRoleToWhitelist] = useState<'supervisor' | 'cmo' | 'cno' | 'admin'>('supervisor');
+  
+  // Create user state
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserDisplayName, setNewUserDisplayName] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'supervisor' | 'cmo' | 'cno' | 'admin'>('supervisor');
+
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -244,6 +254,80 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
     }
   };
 
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canWhitelist) {
+      alert("Unauthorized Action: Only CMO, CNO, or admin accounts can create users.");
+      return;
+    }
+
+    if (newUserPassword.length < 6) {
+      alert("Password must be at least 6 characters long.");
+      return;
+    }
+
+    const emailToSave = newUserEmail.trim().toLowerCase();
+    if (!emailToSave) return;
+
+    if (users.some(u => u.email.toLowerCase() === emailToSave)) {
+      showNotification("This email address is already registered.");
+      return;
+    }
+
+    setActionLoading('create_user');
+    try {
+      // Create user using secondary app instance so current admin does not get logged out
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, emailToSave, newUserPassword);
+      const newUid = userCredential.user.uid;
+
+      // Ensure they are whitelisted and have the right role
+      const designation = 
+        newUserRole === 'admin' ? 'Clinic Manager' :
+        newUserRole === 'cmo' ? 'Chief Medical Officer' :
+        newUserRole === 'cno' ? 'Chief Nursing Officer' : 'Night Superintendent';
+
+      await setDoc(doc(db, 'users', newUid), {
+        uid: newUid,
+        email: emailToSave,
+        displayName: newUserDisplayName || designation,
+        role: newUserRole,
+        designation: designation,
+        whitelisted: true,
+        createdAt: new Date().toISOString()
+      });
+
+      // Optionally sign them out of the secondary instance immediately
+      await secondaryAuth.signOut();
+
+      // Log it
+      const logId = `create_user_${Date.now()}_${currentUser.uid}`;
+      await setDoc(doc(db, 'auditLogs', logId), {
+        id: logId,
+        reportDate: new Date().toISOString().split('T')[0],
+        timestamp: new Date().toISOString(),
+        userId: currentUser.uid,
+        userEmail: currentUser.email || '',
+        userDisplayName: currentUser.displayName || 'Authorized Admin',
+        userRole: currentRole,
+        modifiedFields: ['users'],
+        action: 'create',
+        details: `Created new staff account for '${emailToSave}' with pre-authorized role: '${newUserRole}'.`
+      });
+
+      showNotification(`Account created for ${emailToSave} successfully.`);
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserDisplayName('');
+      setNewUserRole('supervisor');
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err: any) {
+      console.error(err);
+      alert("Could not create user account. " + err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const filteredUsers = users.filter(u => {
     return (
       (u.displayName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -411,6 +495,78 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
         {/* Right column: Pre-Whitelist form and list */}
         <div className="space-y-4">
           
+          {/* Create User form */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-xl p-5 space-y-4 transition-colors">
+            <div>
+              <h3 className="text-xs uppercase font-bold tracking-widest text-slate-400">Account Creation</h3>
+              <h2 className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 mt-1 leading-snug">Create Staff Account</h2>
+              <p className="text-[10px] text-slate-550 dark:text-slate-400 mt-0.5">
+                Directly create a new user account with an email and password.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateUser} className="space-y-3.5">
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-3 h-4.5 w-4.5 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  placeholder="name@tumutumuhospital.org"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="relative">
+                <Key className="absolute left-3.5 top-3 h-4.5 w-4.5 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  placeholder="Temporary Password (min 6 chars)"
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  minLength={6}
+                  className="w-full pl-10 pr-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div className="relative">
+                <UserCheck className="absolute left-3.5 top-3 h-4.5 w-4.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Display Name (optional)"
+                  value={newUserDisplayName}
+                  onChange={(e) => setNewUserDisplayName(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Account Role</label>
+                <select
+                  value={newUserRole}
+                  onChange={(e) => setNewUserRole(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-slate-100 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
+                >
+                  <option value="supervisor">Night Supervisor (Supervisor)</option>
+                  <option value="cmo">Chief Medical Officer (CMO)</option>
+                  <option value="cno">Chief Nursing Officer (CNO)</option>
+                  <option value="admin">Super Admin / Clinic Manager</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={actionLoading === 'create_user'}
+                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold tracking-wide shadow-md shadow-blue-600/10 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                <UserPlus className="h-4 w-4" />
+                Create Account
+              </button>
+            </form>
+          </div>
+
           {/* Pre-whitelist a new email form */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-xl p-5 space-y-4 transition-colors">
             <div>

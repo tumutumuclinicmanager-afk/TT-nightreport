@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, orderBy, getDocs, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { NightReport, CMOComment } from '../types/report';
 import { generateSingleShiftPDF } from '../utils/pdfGenerator';
 import { getCurrentShiftDate } from '../utils/reportDefaults';
@@ -21,7 +21,8 @@ import {
   ChevronRight,
   Download,
   Layers,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Trash2
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -148,6 +149,49 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
       alert("Error: Unable to submit commentary. Please check connection.");
     } finally {
       setIsSavingComment(false);
+    }
+  };
+
+  const handleDeleteReport = async () => {
+    if (!selectedReportForView) return;
+    if (userRole !== 'admin') {
+      alert("Unauthorized Action: Only Super Admins can delete reports.");
+      return;
+    }
+
+    const confirmDelete = window.confirm(`Are you absolutely sure you want to permanently delete the night report for ${selectedReportForView.date}? This action cannot be undone.`);
+    if (!confirmDelete) return;
+
+    try {
+      const docRef = doc(db, 'nightReports', selectedReportForView.date);
+      await deleteDoc(docRef);
+
+      // Log audit
+      try {
+        const logId = `delete_report_${Date.now()}_${user.uid}`;
+        const logRef = doc(db, 'auditLogs', logId);
+        await setDoc(logRef, {
+          id: logId,
+          reportDate: selectedReportForView.date,
+          timestamp: new Date().toISOString(),
+          userId: user.uid,
+          userEmail: user.email || '',
+          userDisplayName: user.displayName || 'Super Admin',
+          userRole: userRole,
+          modifiedFields: ['nightReports'],
+          action: 'delete',
+          details: `Deleted night report for shift ${selectedReportForView.date}.`
+        });
+      } catch (logErr) {
+        console.warn("Failed to write audit log for report deletion:", logErr);
+      }
+
+      setReports(prev => prev.filter(r => r.date !== selectedReportForView.date));
+      setSelectedReportForView(null);
+      alert("Report successfully deleted.");
+    } catch (err: any) {
+      console.error("Failed to delete report:", err);
+      alert("Error: Unable to delete report. Please check connection.");
     }
   };
 
@@ -583,6 +627,16 @@ export default function Dashboard({ user, userRole, onSelectDate, onRefreshTrigg
                     >
                       <FileEdit className="h-3.5 w-3.5" />
                       <span>Edit Draft</span>
+                    </button>
+                  )}
+                  {userRole === 'admin' && (
+                    <button
+                      onClick={handleDeleteReport}
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer flex-grow sm:flex-grow-0 shadow-md shadow-rose-500/10"
+                      title="Permanently Delete Report"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete</span>
                     </button>
                   )}
                   <button

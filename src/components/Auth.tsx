@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../firebase';
-import { HeartPulse, ShieldAlert, AlertCircle } from 'lucide-react';
+import { HeartPulse, ShieldAlert, AlertCircle, Mail, Key } from 'lucide-react';
 
 interface AuthProps {
   onLoginSuccess: (user: any, role: 'supervisor' | 'cmo' | 'cno' | 'admin') => void;
@@ -12,6 +12,9 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [useRedirectOnly, setUseRedirectOnly] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authMode, setAuthMode] = useState<'google' | 'email'>('google');
 
   const fetchOrCreateUserProfile = async (user: any) => {
     try {
@@ -155,6 +158,153 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
     }
   };
 
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const resolvedRole = await fetchOrCreateUserProfile(cred.user);
+      onLoginSuccess(cred.user, resolvedRole);
+    } catch (err: any) {
+      console.error("Email sign-in failed:", err);
+      setError(err.message || "Invalid email or password.");
+      setLoading(false);
+    }
+  };
+
+  const renderGoogleAuth = () => (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setUseRedirectOnly(false);
+          handleGoogleSignIn();
+        }}
+        disabled={loading}
+        className="w-full h-12 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50"
+      >
+        {loading && !useRedirectOnly ? (
+          <div className="border-2 border-slate-400 border-t-transparent animate-spin h-5 w-5 rounded-full" />
+        ) : (
+          <>
+            <svg className="h-5 w-5" viewBox="0 0 24 24">
+              <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.64l3.15-3.15C17.44 1.7 14.94 1 12 1 7.35 1 3.4 3.75 1.58 7.74l3.77 2.92C6.27 7.4 8.87 5.04 12 5.04z" />
+              <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.35H12v4.51h6.46c-.29 1.48-1.14 2.73-2.4 3.58l3.7 2.87c2.16-2 3.73-4.94 3.73-8.61z" />
+              <path fill="#FBBC05" d="M5.35 10.66a7.16 7.16 0 0 1 0-4.52L1.58 3.22A12.01 12.01 0 0 0 1.58 15l3.77-2.92c-.31-.47-.5-.98-.5-1.42z" />
+              <path fill="#34A853" d="M12 23c3.24 0 5.95-1.08 7.93-2.91l-3.7-2.87c-1.11.75-2.52 1.2-4.23 1.2-3.13 0-5.73-2.36-6.65-5.62L1.58 15.72A11.97 11.97 0 0 0 12 23z" />
+            </svg>
+            <span className="font-bold">Sign In with Pop-up</span>
+          </>
+        )}
+      </button>
+
+      <div className="relative flex py-2 items-center">
+        <div className="flex-grow border-t border-slate-100"></div>
+        <span className="flex-shrink mx-3 text-[10px] text-slate-400 font-bold uppercase tracking-wider">Trouble with Pop-ups?</span>
+        <div className="flex-grow border-t border-slate-100"></div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          setUseRedirectOnly(true);
+          handleRedirectSignIn();
+        }}
+        disabled={loading}
+        className="w-full h-11 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-100/50 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+      >
+        {loading && useRedirectOnly ? (
+          <div className="border-2 border-teal-600 border-t-transparent animate-spin h-4.5 w-4.5 rounded-full" />
+        ) : (
+          <>
+            <AlertCircle className="h-4 w-4 text-teal-600 animate-bounce" />
+            <span>Use Redirect Sign-In (Best for Mobile)</span>
+          </>
+        )}
+      </button>
+
+      <div className="relative flex py-3 items-center">
+        <div className="flex-grow border-t border-slate-100"></div>
+        <span className="flex-shrink mx-3 text-[10px] text-slate-400 font-bold uppercase tracking-wider">Or</span>
+        <div className="flex-grow border-t border-slate-100"></div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setAuthMode('email')}
+        className="w-full h-11 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <Mail className="h-4 w-4 text-slate-500" />
+        <span>Sign In with Email & Password</span>
+      </button>
+    </>
+  );
+
+  const renderEmailAuth = () => (
+    <form onSubmit={handleEmailSignIn} className="space-y-4">
+      <div className="relative">
+        <Mail className="absolute left-3.5 top-3.5 h-4.5 w-4.5 text-slate-400" />
+        <input
+          type="email"
+          required
+          placeholder="Email address"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full pl-10 pr-3 py-3 border border-slate-200 bg-slate-50 text-slate-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+        />
+      </div>
+
+      <div className="relative">
+        <Key className="absolute left-3.5 top-3.5 h-4.5 w-4.5 text-slate-400" />
+        <input
+          type="password"
+          required
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full pl-10 pr-3 py-3 border border-slate-200 bg-slate-50 text-slate-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full h-12 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold shadow-md shadow-teal-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+      >
+        {loading ? (
+          <div className="border-2 border-white border-t-transparent animate-spin h-5 w-5 rounded-full" />
+        ) : (
+          'Sign In'
+        )}
+      </button>
+
+      <div className="relative flex py-3 items-center">
+        <div className="flex-grow border-t border-slate-100"></div>
+        <span className="flex-shrink mx-3 text-[10px] text-slate-400 font-bold uppercase tracking-wider">Or</span>
+        <div className="flex-grow border-t border-slate-100"></div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setAuthMode('google')}
+        className="w-full h-11 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <svg className="h-4 w-4" viewBox="0 0 24 24">
+          <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.64l3.15-3.15C17.44 1.7 14.94 1 12 1 7.35 1 3.4 3.75 1.58 7.74l3.77 2.92C6.27 7.4 8.87 5.04 12 5.04z" />
+          <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.35H12v4.51h6.46c-.29 1.48-1.14 2.73-2.4 3.58l3.7 2.87c2.16-2 3.73-4.94 3.73-8.61z" />
+          <path fill="#FBBC05" d="M5.35 10.66a7.16 7.16 0 0 1 0-4.52L1.58 3.22A12.01 12.01 0 0 0 1.58 15l3.77-2.92c-.31-.47-.5-.98-.5-1.42z" />
+          <path fill="#34A853" d="M12 23c3.24 0 5.95-1.08 7.93-2.91l-3.7-2.87c-1.11.75-2.52 1.2-4.23 1.2-3.13 0-5.73-2.36-6.65-5.62L1.58 15.72A11.97 11.97 0 0 0 12 23z" />
+        </svg>
+        <span>Sign In with Google</span>
+      </button>
+    </form>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -190,55 +340,8 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
             </div>
           )}
 
-          <div className="pt-2 space-y-3">
-            <button
-              type="button"
-              onClick={() => {
-                setUseRedirectOnly(false);
-                handleGoogleSignIn();
-              }}
-              disabled={loading}
-              className="w-full h-12 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50"
-            >
-              {loading && !useRedirectOnly ? (
-                <div className="border-2 border-slate-400 border-t-transparent animate-spin h-5 w-5 rounded-full" />
-              ) : (
-                <>
-                  <svg className="h-5 w-5" viewBox="0 0 24 24">
-                    <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.64l3.15-3.15C17.44 1.7 14.94 1 12 1 7.35 1 3.4 3.75 1.58 7.74l3.77 2.92C6.27 7.4 8.87 5.04 12 5.04z" />
-                    <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.35H12v4.51h6.46c-.29 1.48-1.14 2.73-2.4 3.58l3.7 2.87c2.16-2 3.73-4.94 3.73-8.61z" />
-                    <path fill="#FBBC05" d="M5.35 10.66a7.16 7.16 0 0 1 0-4.52L1.58 3.22A12.01 12.01 0 0 0 1.58 15l3.77-2.92c-.31-.47-.5-.98-.5-1.42z" />
-                    <path fill="#34A853" d="M12 23c3.24 0 5.95-1.08 7.93-2.91l-3.7-2.87c-1.11.75-2.52 1.2-4.23 1.2-3.13 0-5.73-2.36-6.65-5.62L1.58 15.72A11.97 11.97 0 0 0 12 23z" />
-                  </svg>
-                  <span className="font-bold">Sign In with Pop-up</span>
-                </>
-              )}
-            </button>
-
-            <div className="relative flex py-2 items-center">
-              <div className="flex-grow border-t border-slate-100"></div>
-              <span className="flex-shrink mx-3 text-[10px] text-slate-400 font-bold uppercase tracking-wider">Trouble with Pop-ups?</span>
-              <div className="flex-grow border-t border-slate-100"></div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setUseRedirectOnly(true);
-                handleRedirectSignIn();
-              }}
-              disabled={loading}
-              className="w-full h-11 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-100/50 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              {loading && useRedirectOnly ? (
-                <div className="border-2 border-teal-600 border-t-transparent animate-spin h-4.5 w-4.5 rounded-full" />
-              ) : (
-                <>
-                  <AlertCircle className="h-4 w-4 text-teal-600 animate-bounce" />
-                  <span>Use Redirect Sign-In (Best for Mobile)</span>
-                </>
-              )}
-            </button>
+          <div className="pt-2">
+            {authMode === 'google' ? renderGoogleAuth() : renderEmailAuth()}
           </div>
 
           <div className="border-t border-slate-100 pt-4 text-[10px] text-center text-slate-400 font-medium">
