@@ -322,7 +322,11 @@ export default function UserWhitelist({ currentUser, currentRole, currentDesigna
       setRefreshTrigger(prev => prev + 1);
     } catch (err: any) {
       console.error(err);
-      alert("Could not create user account. " + err.message);
+      if (err.code === 'auth/email-already-in-use') {
+        alert("This email is already registered in the system. If they are not in the list below, they may have an uninitialized profile. They can sign in directly or you can add them to the Pre-Whitelist.");
+      } else {
+        alert("Could not create user account. " + err.message);
+      }
     } finally {
       setActionLoading(null);
     }
